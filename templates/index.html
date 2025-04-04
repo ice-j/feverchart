@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fever Chart App</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Team Setup</h1>
+    <a href="{{ url_for('logout') }}" class="logout-button">Log Out</a>
+
+    
+    <!-- Team Creation Form -->
+    <form action="{{ url_for('add_team') }}" method="POST">
+        <input type="text" name="name" placeholder="Team Name" required>
+        <input type="text" name="product" placeholder="Product" required>
+        <textarea name="info" placeholder="Team Info"></textarea>
+        <button type="submit">Create Team</button>
+    </form>
+
+    <!-- Existing Teams -->
+    <h2>Existing Teams</h2>
+    <div id="teams-list">
+        {% for team in teams %}
+        <div class="team-card">
+            <h3>{{ team.name }}</h3>
+            <p>Product: {{ team.product }}</p>
+            
+            <!-- Add Project Form -->
+            <form action="{{ url_for('add_project') }}" method="POST">
+                <input type="hidden" name="team_id" value="{{ team.id }}">
+                <input type="text" name="name" placeholder="Project Name" required>
+                <input type="number" name="total_wip" placeholder="Total WIP" required>
+                <input type="number" name="buffer_size" placeholder="Buffer Size" required>
+                <button type="submit">Add Project</button>
+            </form>
+
+            <!-- List Projects -->
+            <h4>Projects:</h4>
+            <ul>
+                {% for project in team.projects %}
+<li>
+    <a href="{{ url_for('project_detail', project_id=project.id) }}">
+        {{ project.name }}
+    </a>
+    (Total WIP: {{ project.total_wip }}, Buffer Size: {{ project.buffer_size }})
+</li>
+{% endfor %}
+
+            </ul>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        <ul class="flashed-messages">
+            {% for category, message in messages %}
+                <li class="{{ category }}">{{ message }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+{% endwith %}
+</body>
+</html>

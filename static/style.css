@@ -1,0 +1,50 @@
+body { font-family: Arial, sans-serif; margin: 20px; }
+form { margin: 20px 0; padding: 20px; border: 1px solid #ccc; }
+input, textarea { display: block; margin: 5px 0 15px; }
+table { border-collapse: collapse; width: 100%; }
+td, th { border: 1px solid #ddd; padding: 8px; text-align: left; }
+tr:nth-child(even) { background-color: #f2f2f2; }
+.team-card { margin: 20px 0; padding: 15px; border: 1px solid #eee; }
+
+.project-settings {
+    margin: 20px 0;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+}
+
+.project-settings form {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.project-settings label {
+    font-weight: bold;
+}
+
+.flashed-messages {
+    list-style-type: none;
+    padding: 10px;
+    margin: 10px 0;
+}
+.flashed-messages .success {
+    color: green;
+    font-weight: bold;
+}
+.flashed-messages .error {
+    color: red;
+    font-weight: bold;
+}
+
+.logout-button {
+    color: red;
+    text-decoration: none;
+    font-weight: bold;
+    margin-left: 10px;
+}
+.logout-button:hover {
+    text-decoration: underline;
+}
