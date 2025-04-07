@@ -4,9 +4,8 @@ from datetime import datetime
 from sqlalchemy import func  
 import os
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
-from datetime import datetime, timedelta  # Add timedelta to imports
-
-
+from datetime import timedelta 
+from auth import admin_required
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -17,17 +16,12 @@ login_manager = LoginManager(app)
 login_manager.login_view = 'login' 
 
 # Database Models
-
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True)
     password = db.Column(db.String(100))
-
-# Load user for Flask-Login
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
-
+    role = db.Column(db.String(50), default='user')
+    teams = db.relationship('Team', backref='creator', lazy=True)
 
 class Team(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -35,6 +29,7 @@ class Team(db.Model):
     product = db.Column(db.String(100))
     info = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
     projects = db.relationship('Project', backref='team', lazy=True)
 
 class Project(db.Model):
@@ -43,8 +38,8 @@ class Project(db.Model):
     name = db.Column(db.String(100))
     total_wip = db.Column(db.Integer)
     buffer_size = db.Column(db.Integer)
-    forecasted_date = db.Column(db.DateTime)  # New field
-    buffer_deadline = db.Column(db.DateTime)  # New field
+    forecasted_date = db.Column(db.DateTime)
+    buffer_deadline = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     fever_data = db.relationship('FeverChartData', backref='project', lazy=True)
 
@@ -53,7 +48,7 @@ class FeverChartData(db.Model):
     project_id = db.Column(db.Integer, db.ForeignKey('project.id'))
     current_wip = db.Column(db.Integer)
     actual_ct = db.Column(db.Float)
-    average_ct = db.Column(db.Float)  # New field for user input
+    average_ct = db.Column(db.Float)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     actual_throughput = db.Column(db.Float)
     expected_ct = db.Column(db.Float)
@@ -62,12 +57,19 @@ class FeverChartData(db.Model):
     work_completed_pct = db.Column(db.Float)
     buffer_burn_rate = db.Column(db.Float)
 
+# Load user for Flask-Login
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
 # ====================== ROUTES ======================
-
 @app.route('/')
+@login_required
 def index():
-    teams = Team.query.all()
+    if current_user.role == 'admin':
+        teams = Team.query.all()
+    else:
+        teams = Team.query.filter_by(created_by=current_user.id).all()
     return render_template('index.html', teams=teams)
 
 @app.route('/add_team', methods=['POST'])
@@ -76,13 +78,13 @@ def add_team():
     team = Team(
         name=request.form['name'],
         product=request.form['product'],
-        info=request.form['info']
+        info=request.form['info'],  # Added missing comma here
+        created_by=current_user.id
     )
     db.session.add(team)
     db.session.commit()
     flash("Team added successfully.", "success")
     return redirect('/')
-
 @app.route('/add_project', methods=['POST'])
 def add_project():
     try:
@@ -206,6 +208,12 @@ def logout():
     logout_user()
     flash("Logged out successfully.", "success")
     return redirect(url_for('login'))
+
+@app.route('/admin/dashboard')
+@admin_required
+def admin_dashboard():
+    users = User.query.all()
+    return render_template('admin_dashboard.html', users=users)
     
 # ====================== MAIN ENTRY POINT ======================
 

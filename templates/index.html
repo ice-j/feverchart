@@ -24,37 +24,44 @@
         <div class="team-card">
             <h3>{{ team.name }}</h3>
             <p>Product: {{ team.product }}</p>
-            
+            <p>Created by: {{ team.creator.username }}</p> <!-- Show creator's username -->
+            {% if current_user.role == 'admin' or team.created_by == current_user.id %}
+            <!-- Show delete button only for admins or creators -->
+            <form action="/delete_team/{{ team.id }}" method="POST">
+                <button type="submit" class="delete-button">Delete Team</button>
+            </form>
+            {% endif %}
+        
             <!-- Add Project Form -->
             <form action="{{ url_for('add_project') }}" method="POST">
                 <input type="hidden" name="team_id" value="{{ team.id }}">
                 <input type="text" name="name" placeholder="Project Name" required>
                 <input type="number" name="total_wip" placeholder="Total WIP" required>
                 <input type="number" name="buffer_size" placeholder="Buffer Size (days)" required>
-                <input type="date" name="forecasted_date" required>  <!-- New input -->
+                <span>50 % monte carlo date </span>
+                <input type="date" name="forecasted_date" required>
                 <button type="submit">Add Project</button>
             </form>
-            
-
+        
             <!-- List Projects -->
             <h4>Projects:</h4>
             <ul>
                 {% for project in team.projects %}
-<li>
-    <a href="{{ url_for('project_detail', project_id=project.id) }}">
-        {{ project.name }}
-    </a>
-    <div class="project-dates">
-        Forecasted: {{ project.forecasted_date.strftime('%d.%m.%Y') }}<br>
-        Deadline: {{ project.buffer_deadline.strftime('%d.%m.%Y') }}
-    </div>
-</li>
-{% endfor %}
-
-
+                <li>
+                    <a href="{{ url_for('project_detail', project_id=project.id) }}">
+                        {{ project.name }}
+                    </a>
+                    <div class="project-dates">
+                        Forecasted: {{ project.forecasted_date.strftime('%d.%m.%Y') }}<br>
+                        Deadline: {{ project.buffer_deadline.strftime('%d.%m.%Y') }}
+                    </div>
+                </li>
+                {% endfor %}
             </ul>
+        
+           
         </div>
-        {% endfor %}
+        {% endfor %}   
     </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
