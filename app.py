@@ -6,6 +6,7 @@ import os
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from datetime import timedelta 
 from auth import admin_required
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -19,9 +20,16 @@ login_manager.login_view = 'login'
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True)
-    password = db.Column(db.String(100))
+    password_hash = db.Column(db.String(200))  # Renamed from 'password'
     role = db.Column(db.String(50), default='user')
     teams = db.relationship('Team', backref='creator', lazy=True)
+
+    # Add password hashing methods
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+    
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
 class Team(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -72,6 +80,47 @@ def index():
     else:
         teams = Team.query.filter_by(created_by=current_user.id).all()
     return render_template('index.html', teams=teams)
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        
+        existing_user = User.query.filter_by(username=username).first()
+        if existing_user:
+            flash("Username already exists.", "error")
+            return redirect(url_for('register'))
+        
+        # Create user with hashed password
+        new_user = User(
+            username=username,
+            password_hash=generate_password_hash(password),  # Use password_hash
+            role='user'
+        )
+        
+        db.session.add(new_user)
+        db.session.commit()
+        flash("Account created successfully!", "success")
+        return redirect(url_for('login'))
+    
+    return render_template('register.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        user = User.query.filter_by(username=username).first()
+        
+        if user and check_password_hash(user.password_hash, password):  # Check password_hash
+            login_user(user)
+            flash("Logged in successfully!", "success")
+            return redirect(url_for('index'))
+        else:
+            flash("Invalid username or password.", "error")
+    
+    return render_template('login.html')
 
 @app.route('/add_team', methods=['POST'])
 @login_required
@@ -194,21 +243,6 @@ def delete_fever_data(data_id):
     flash("Fever chart data point deleted successfully.", "success")
     return redirect(f'/project/{project_id}')
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        user = User.query.filter_by(username=username).first()
-        
-        if user and user.password == password:  # Simple password check (use hashing in production)
-            login_user(user)
-            flash("Logged in successfully!", "success")
-            return redirect(url_for('index'))
-        else:
-            flash("Invalid username or password.", "error")
-    
-    return render_template('login.html')
 
 @app.route('/logout')
 @login_required
