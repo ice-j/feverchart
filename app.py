@@ -147,7 +147,6 @@ def add_fever_data():
         new_data.expected_flowtime = project.total_wip / new_data.actual_throughput
         new_data.flowtime_diff = new_data.expected_flowtime - average_flowtime
         new_data.buffer_consumption = (new_data.flowtime_diff / project.buffer_size) * 100
-
         new_data.work_completed_pct = (1 - (current_wip / project.total_wip)) * 100
         new_data.buffer_burn_rate = new_data.buffer_consumption / new_data.work_completed_pct if new_data.work_completed_pct != 0 else 0
 
