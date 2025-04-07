@@ -30,9 +30,11 @@
                 <input type="hidden" name="team_id" value="{{ team.id }}">
                 <input type="text" name="name" placeholder="Project Name" required>
                 <input type="number" name="total_wip" placeholder="Total WIP" required>
-                <input type="number" name="buffer_size" placeholder="Buffer Size" required>
+                <input type="number" name="buffer_size" placeholder="Buffer Size (days)" required>
+                <input type="date" name="forecasted_date" required>  <!-- New input -->
                 <button type="submit">Add Project</button>
             </form>
+            
 
             <!-- List Projects -->
             <h4>Projects:</h4>
@@ -42,9 +44,13 @@
     <a href="{{ url_for('project_detail', project_id=project.id) }}">
         {{ project.name }}
     </a>
-    (Total WIP: {{ project.total_wip }}, Buffer Size: {{ project.buffer_size }})
+    <div class="project-dates">
+        Forecasted: {{ project.forecasted_date.strftime('%d.%m.%Y') }}<br>
+        Deadline: {{ project.buffer_deadline.strftime('%d.%m.%Y') }}
+    </div>
 </li>
 {% endfor %}
+
 
             </ul>
         </div>

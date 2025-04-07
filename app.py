@@ -4,6 +4,8 @@ from datetime import datetime
 from sqlalchemy import func  
 import os
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from datetime import datetime, timedelta  # Add timedelta to imports
+
 
 
 # Initialize Flask app
@@ -41,6 +43,8 @@ class Project(db.Model):
     name = db.Column(db.String(100))
     total_wip = db.Column(db.Integer)
     buffer_size = db.Column(db.Integer)
+    forecasted_date = db.Column(db.DateTime)  # New field
+    buffer_deadline = db.Column(db.DateTime)  # New field
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     fever_data = db.relationship('FeverChartData', backref='project', lazy=True)
 
@@ -79,18 +83,29 @@ def add_team():
     flash("Team added successfully.", "success")
     return redirect('/')
 
-@app.route('/add_project', methods=['POST'])  # Ensure this is present
+@app.route('/add_project', methods=['POST'])
 def add_project():
-    project = Project(
-        team_id=request.form['team_id'],
-        name=request.form['name'],
-        total_wip=int(request.form['total_wip']),
-        buffer_size=int(request.form['buffer_size'])
-    )
-    db.session.add(project)
-    db.session.commit()
-    return redirect('/')
-
+    try:
+        forecasted_date = datetime.strptime(request.form['forecasted_date'], '%Y-%m-%d')
+        buffer_size = int(request.form['buffer_size'])
+        
+        project = Project(
+            team_id=request.form['team_id'],
+            name=request.form['name'],
+            total_wip=int(request.form['total_wip']),
+            buffer_size=buffer_size,
+            forecasted_date=forecasted_date,
+            buffer_deadline=forecasted_date + timedelta(days=buffer_size)
+        )
+        
+        db.session.add(project)
+        db.session.commit()
+        flash("Project added successfully.", "success")
+        return redirect('/')
+    except ValueError:
+        flash("Invalid input. Please check your values.", "error")
+        return redirect('/')
+    
 @app.route('/project/<int:project_id>')
 def project_detail(project_id):
     project = Project.query.get_or_404(project_id)
@@ -137,22 +152,19 @@ def add_fever_data():
 @app.route('/update_project', methods=['POST'])
 def update_project():
     try:
-        total_wip = int(request.form['total_wip'])
-        buffer_size = int(request.form['buffer_size'])
-        
-        if total_wip <= 0 or buffer_size <= 0:
-            flash("Total WIP and Buffer Size must be greater than 0.", "error")
-            return redirect(f'/project/{request.form["project_id"]}')
-        
         project = Project.query.get(request.form['project_id'])
-        project.total_wip = total_wip
-        project.buffer_size = buffer_size
-        db.session.commit()
+        new_forecasted_date = datetime.strptime(request.form['forecasted_date'], '%Y-%m-%d')
         
-        flash("Project settings updated successfully.", "success")
+        project.total_wip = int(request.form['total_wip'])
+        project.buffer_size = int(request.form['buffer_size'])
+        project.forecasted_date = new_forecasted_date
+        project.buffer_deadline = new_forecasted_date + timedelta(days=project.buffer_size)
+        
+        db.session.commit()
+        flash("Project updated successfully.", "success")
         return redirect(f'/project/{project.id}')
     except ValueError:
-        flash("Invalid input. Please enter valid numbers.", "error")
+        flash("Invalid input. Please check your values.", "error")
         return redirect(f'/project/{request.form["project_id"]}')
     
 @app.route('/delete_project/<int:project_id>', methods=['POST'])

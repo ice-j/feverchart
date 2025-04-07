@@ -20,6 +20,10 @@
         
         <label>Buffer Size:</label>
         <input type="number" name="buffer_size" value="{{ project.buffer_size }}" required>
+        <div class="project-dates">
+            <p>Forecasted Start: {{ project.forecasted_date.strftime('%d.%m.%Y') }}</p>
+            <p>Buffer Deadline: {{ project.buffer_deadline.strftime('%d.%m.%Y') }}</p>
+        </div>
         
         <button type="submit">Update Settings</button>
     </form>
