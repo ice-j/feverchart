@@ -7,6 +7,7 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from datetime import timedelta 
 from auth import admin_required
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_bootstrap import Bootstrap
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -15,6 +16,8 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///fever.db'
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login' 
+
+bootstrap = Bootstrap(app)
 
 # Database Models
 class User(db.Model, UserMixin):
@@ -139,7 +142,7 @@ def add_team():
 @app.route('/add_project', methods=['POST'])
 def add_project():
     try:
-        # Parse forecasted date and buffer size from the form
+        original_expected_flowtime = float(request.form.get('original_expected_flowtime', 0))  # Default to 0 if missing
         forecasted_date = datetime.strptime(request.form['forecasted_date'], '%Y-%m-%d')
         buffer_size = int(request.form['buffer_size'])
         original_expected_flowtime = float(request.form['original_expected_flowtime'])  # New field
@@ -169,7 +172,6 @@ def project_detail(project_id):
     project = Project.query.get_or_404(project_id)
     fever_data = FeverChartData.query.filter_by(project_id=project_id).order_by(FeverChartData.created_at).all()
     return render_template('fever_chart.html', project=project, fever_data=fever_data)
-
 @app.route('/add_fever_data', methods=['POST'])
 def add_fever_data():
     try:

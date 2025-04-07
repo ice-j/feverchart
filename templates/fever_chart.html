@@ -1,33 +1,23 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Fever Chart - {{ project.name }}</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
     <h1>{{ project.name }} Fever Chart</h1>
-    <a href="{{ url_for('logout') }}" class="logout-button">Log Out</a>
 
-<div class="project-settings">
-    <h2>Project Settings</h2>
-    <form action="{{ url_for('update_project') }}" method="POST">
-        <input type="hidden" name="project_id" value="{{ project.id }}">
-        
-        <label>Total number of tasks in project:</label>
-        <input type="number" name="total_wip" value="{{ project.total_wip }}" required>
-        
-        <label>Buffer Size in days:</label>
-        <input type="number" name="buffer_size" value="{{ project.buffer_size }}" required>
-        <div class="project-dates">
-            <p>Forecasted Start: {{ project.forecasted_date.strftime('%d.%m.%Y') }}</p>
-            <p>Buffer Deadline: {{ project.buffer_deadline.strftime('%d.%m.%Y') }}</p>
-        </div>
-        
-        <button type="submit">Update Settings</button>
-    </form>
-</div>
+    <!-- Project Settings -->
+    <div class="project-settings">
+        <h2>Project Settings</h2>
+        <form action="{{ url_for('update_project') }}" method="POST">
+            <input type="hidden" name="project_id" value="{{ project.id }}">
+            
+            <label>Total WIP:</label>
+            <input type="number" name="total_wip" value="{{ project.total_wip }}" required>
+
+            <label>Buffer Size:</label>
+            <input type="number" name="buffer_size" value="{{ project.buffer_size }}" required>
+
+            <button type="submit">Update Settings</button>
+        </form>
+    </div>
 
     
     <!-- Data Entry Form -->
@@ -49,7 +39,7 @@
     
 
     <!-- Chart Container -->
-    <div style="width: 800px; margin: 20px auto;">
+    <div style="position: relative; height: 60vh; width: 80vw; margin: 0 auto;">
         <canvas id="feverChart"></canvas>
     </div>
 
@@ -92,31 +82,49 @@
 
     
     <script>
+        // Initialize Chart
         const ctx = document.getElementById('feverChart').getContext('2d');
-        const feverChartData = {
+        
+        // Chart data from Flask template
+        const chartData = {
             datasets: [{
                 label: 'Fever Chart',
                 data: [
                     {% for data in fever_data %}
-                    { x: {{ data.work_completed_pct|round(1) }}, y: {{ data.buffer_consumption|round(1) }} },
+                    { 
+                        x: {{ data.work_completed_pct|round(1) }}, 
+                        y: {{ data.buffer_consumption|round(1) }}
+                    },
                     {% endfor %}
                 ],
-                backgroundColor: 'rgba(75, 192, 192, 0.6)'
+                backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                pointRadius: 5
             }]
         };
     
+        // Chart configuration
         const config = {
             type: 'scatter',
-            data: feverChartData,
+            data: chartData,
             options: {
+                responsive: true,
+                maintainAspectRatio: false,
                 scales: {
                     x: {
-                        title: { display: true, text: 'Work Completed (%)' },
+                        type: 'linear',
+                        position: 'bottom',
+                        title: {
+                            display: true,
+                            text: 'Work Completed (%)'
+                        },
                         min: 0,
                         max: 100
                     },
                     y: {
-                        title: { display: true, text: 'Buffer Consumption (%)' },
+                        title: {
+                            display: true,
+                            text: 'Buffer Consumption (%)'
+                        },
                         min: 0,
                         max: 100
                     }
@@ -131,14 +139,7 @@
                                 yMin: 0,
                                 yMax: 33,
                                 backgroundColor: 'rgba(0, 255, 0, 0.1)',
-                                borderWidth: 0,
-                                label: {
-                                    content: 'Safe Zone',
-                                    enabled: true,
-                                    position: 'center',
-                                    color: 'green',
-                                    font: { size: 16 }  // Fixed here
-                                }
+                                borderWidth: 0
                             },
                             yellowZone: {
                                 type: 'box',
@@ -147,14 +148,7 @@
                                 yMin: 33,
                                 yMax: 66,
                                 backgroundColor: 'rgba(255, 255, 0, 0.1)',
-                                borderWidth: 0,
-                                label: {
-                                    content: 'Warning Zone',
-                                    enabled: true,
-                                    position: 'center',
-                                    color: 'yellow',
-                                    font: { size: 16 }  // Fixed here
-                                }
+                                borderWidth: 0
                             },
                             redZone: {
                                 type: 'box',
@@ -163,14 +157,7 @@
                                 yMin: 66,
                                 yMax: 100,
                                 backgroundColor: 'rgba(255, 0, 0, 0.1)',
-                                borderWidth: 0,
-                                label: {
-                                    content: 'Critical Zone',
-                                    enabled: true,
-                                    position: 'center',
-                                    color: 'red',
-                                    font: { size: 16 }  // Fixed here
-                                }
+                                borderWidth: 0
                             }
                         }
                     }
@@ -178,8 +165,10 @@
             }
         };
     
+        // Create the chart
         new Chart(ctx, config);
     </script>
     
-</body>
-</html>
+    
+</div>
+{% endblock %}
