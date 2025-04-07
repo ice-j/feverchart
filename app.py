@@ -42,6 +42,7 @@ class Project(db.Model):
     buffer_deadline = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     fever_data = db.relationship('FeverChartData', backref='project', lazy=True)
+    original_expected_flowtime = db.Column(db.Float)
 
 class FeverChartData(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -85,21 +86,27 @@ def add_team():
     db.session.commit()
     flash("Team added successfully.", "success")
     return redirect('/')
+
 @app.route('/add_project', methods=['POST'])
 def add_project():
     try:
+        # Parse forecasted date and buffer size from the form
         forecasted_date = datetime.strptime(request.form['forecasted_date'], '%Y-%m-%d')
         buffer_size = int(request.form['buffer_size'])
-        
+        original_expected_flowtime = float(request.form['original_expected_flowtime'])  # New field
+
+        # Create a new project with the parsed values
         project = Project(
             team_id=request.form['team_id'],
             name=request.form['name'],
             total_wip=int(request.form['total_wip']),
             buffer_size=buffer_size,
             forecasted_date=forecasted_date,
-            buffer_deadline=forecasted_date + timedelta(days=buffer_size)
+            buffer_deadline=forecasted_date + timedelta(days=buffer_size),
+            original_expected_flowtime=original_expected_flowtime  # Set the new field
         )
-        
+
+        # Save the project to the database
         db.session.add(project)
         db.session.commit()
         flash("Project added successfully.", "success")
@@ -107,7 +114,7 @@ def add_project():
     except ValueError:
         flash("Invalid input. Please check your values.", "error")
         return redirect('/')
-    
+
 @app.route('/project/<int:project_id>')
 def project_detail(project_id):
     project = Project.query.get_or_404(project_id)
@@ -137,8 +144,8 @@ def add_fever_data():
         # Updated calculations
         new_data.actual_throughput = current_wip / actual_flowtime
         new_data.expected_flowtime = project.total_wip / new_data.actual_throughput  # Renamed
-        new_data.flowtime_diff = new_data.expected_flowtime - average_flowtime  # Renamed
-        new_data.buffer_consumption = (new_data.expected_flowtime * 100) / project.buffer_size
+        new_data.flowtime_diff = new_data.expected_flowtime - project.original_expected_flowtime
+        new_data.buffer_consumption = new_data.flowtime_diff / project.buffer_size
         new_data.work_completed_pct = (1-(current_wip / project.total_wip)) * 100
         new_data.buffer_burn_rate = new_data.buffer_consumption / new_data.work_completed_pct if new_data.work_completed_pct != 0 else 0
 
