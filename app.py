@@ -122,7 +122,7 @@ def add_fever_data():
         actual_flowtime = float(request.form['actual_flowtime'])  # Renamed
         average_flowtime = float(request.form['average_flowtime'])
 
-        if current_wip <= 0 or actual_flowtime <= 0 or average_ct <= 0:
+        if current_wip <= 0 or actual_flowtime <= 0 or average_flowtime <= 0:
             flash("All values must be greater than 0.", "error")
             return redirect(f'/project/{project_id}')
 
@@ -131,13 +131,13 @@ def add_fever_data():
             project_id=project_id,
             current_wip=current_wip,
             actual_flowtime=actual_flowtime,  # Renamed
-            average_ct=average_ct
+            average_flowtime=average_flowtime
         )
 
         # Updated calculations
         new_data.actual_throughput = current_wip / actual_flowtime
         new_data.expected_flowtime = project.total_wip / new_data.actual_throughput  # Renamed
-        new_data.flowtime_diff = new_data.expected_flowtime - average_ct  # Renamed
+        new_data.flowtime_diff = new_data.expected_flowtime - average_flowtime  # Renamed
         new_data.buffer_consumption = (new_data.expected_flowtime * 100) / project.buffer_size
         new_data.work_completed_pct = (1-(current_wip / project.total_wip)) * 100
         new_data.buffer_burn_rate = new_data.buffer_consumption / new_data.work_completed_pct if new_data.work_completed_pct != 0 else 0
