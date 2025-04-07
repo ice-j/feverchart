@@ -49,7 +49,7 @@ class FeverChartData(db.Model):
     project_id = db.Column(db.Integer, db.ForeignKey('project.id'))
     current_wip = db.Column(db.Integer)
     actual_flowtime = db.Column(db.Float)  # Renamed from actual_ct
-    average_ct = db.Column(db.Float)
+    average_flowtime = db.Column(db.Float)  # Renamed from average_ct
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     actual_throughput = db.Column(db.Float)
     expected_flowtime = db.Column(db.Float)  # Renamed from expected_ct
@@ -126,27 +126,29 @@ def add_fever_data():
     try:
         project_id = request.form['project_id']
         current_wip = int(request.form['current_wip'])
-        actual_flowtime = float(request.form['actual_flowtime'])  # Renamed
+        actual_flowtime = float(request.form['actual_flowtime'])
         average_flowtime = float(request.form['average_flowtime'])
 
         if current_wip <= 0 or actual_flowtime <= 0 or average_flowtime <= 0:
             flash("All values must be greater than 0.", "error")
             return redirect(f'/project/{project_id}')
 
-        project = Project.query.get(project_id)
+        project = Project.query.get_or_404(project_id)
         new_data = FeverChartData(
             project_id=project_id,
             current_wip=current_wip,
-            actual_flowtime=actual_flowtime,  # Renamed
+            actual_flowtime=actual_flowtime,
             average_flowtime=average_flowtime
         )
 
-        # Updated calculations
-        new_data.actual_throughput = current_wip / actual_flowtime
-        new_data.expected_flowtime = project.total_wip / new_data.actual_throughput  # Renamed
-        new_data.flowtime_diff = new_data.expected_flowtime - project.original_expected_flowtime
-        new_data.buffer_consumption = new_data.flowtime_diff / project.buffer_size
-        new_data.work_completed_pct = (1-(current_wip / project.total_wip)) * 100
+        # Updated calculation
+        new_data.actual_throughput = (project.total_wip - current_wip) / actual_flowtime
+        
+        new_data.expected_flowtime = project.total_wip / new_data.actual_throughput
+        new_data.flowtime_diff = new_data.expected_flowtime - average_flowtime
+        new_data.buffer_consumption = (new_data.flowtime_diff / project.buffer_size) * 100
+
+        new_data.work_completed_pct = (1 - (current_wip / project.total_wip)) * 100
         new_data.buffer_burn_rate = new_data.buffer_consumption / new_data.work_completed_pct if new_data.work_completed_pct != 0 else 0
 
         db.session.add(new_data)

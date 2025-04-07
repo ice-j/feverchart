@@ -37,7 +37,7 @@
         <label>Total number of tasks left in the project:</label>
         <input type="number" name="current_wip" required>
         
-        <label>New forecasted days to deliver (take it from monte carlo 50%):</label>
+        <label>How many days are we in the project?:</label>
         <input type="number" step="0.1" name="actual_flowtime" required>
 
         <!-- New input field for average cycle time -->
@@ -72,7 +72,7 @@
             <td>{{ data.created_at.strftime('%Y-%m-%d') }}</td>
             <td>{{ data.current_wip }}</td>
             <td>{{ data.actual_flowtime|round(1) }}</td>  <!-- Renamed -->
-            <td>{{ data.average_ct|round(1) }}</td>  
+            <td>{{ data.average_flowtime|round(1) }}</td>  
             <td>{{ data.flowtime_diff|round(1) }}</td>  <!-- Renamed -->
             <td>{{ data.buffer_consumption|round(1) }}%</td>
             <td>{{ data.work_completed_pct|round(1) }}%</td>
