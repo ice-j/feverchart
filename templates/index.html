@@ -36,7 +36,7 @@
             <form action="{{ url_for('add_project') }}" method="POST">
                 <input type="hidden" name="team_id" value="{{ team.id }}">
                 <input type="text" name="name" placeholder="Project Name" required>
-                <input type="number" name="total_wip" placeholder="Total WIP" required>
+                <input type="number" name="total_wip" placeholder="Total number of tasks left in the project" required>
                 <input type="number" name="buffer_size" placeholder="Buffer Size (days)" required>
                 <span>50 % monte carlo date </span>
                 <input type="date" name="forecasted_date" required>

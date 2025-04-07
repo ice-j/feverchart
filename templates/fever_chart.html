@@ -15,10 +15,10 @@
     <form action="{{ url_for('update_project') }}" method="POST">
         <input type="hidden" name="project_id" value="{{ project.id }}">
         
-        <label>Total WIP:</label>
+        <label>Total number of tasks in project:</label>
         <input type="number" name="total_wip" value="{{ project.total_wip }}" required>
         
-        <label>Buffer Size:</label>
+        <label>Buffer Size in days:</label>
         <input type="number" name="buffer_size" value="{{ project.buffer_size }}" required>
         <div class="project-dates">
             <p>Forecasted Start: {{ project.forecasted_date.strftime('%d.%m.%Y') }}</p>
@@ -34,15 +34,15 @@
     <form action="{{ url_for('add_fever_data') }}" method="POST">
         <input type="hidden" name="project_id" value="{{ project.id }}">
         
-        <label>Current WIP:</label>
+        <label>Total number of tasks left in the project:</label>
         <input type="number" name="current_wip" required>
         
-        <label>Actual Cycle Time (days):</label>
-        <input type="number" step="0.1" name="actual_ct" required>
-    
+        <label>New forecasted days to deliver (take it from monte carlo 50%):</label>
+        <input type="number" step="0.1" name="actual_flowtime" required>
+
         <!-- New input field for average cycle time -->
-        <label>Average Cycle Time (days):</label>
-        <input type="number" step="0.1" name="average_ct" required>
+        <label>Initial 50 percentile for forecasted days:</label>
+        <input type="number" step="0.1" name="average_flowtime" required>
         
         <button type="submit">Add Data Point</button>
     </form>
@@ -59,32 +59,33 @@
         <tr>
             <th>Date</th>
             <th>Current WIP</th>
-            <th>Actual CT</th>
+            <th>Actual Flowtime</th>  <!-- Renamed -->
             <th>Average CT</th> 
-            <th>Cycle Time Diff</th> 
+            <th>Flowtime Diff</th>  <!-- Renamed -->
             <th>Buffer %</th>
             <th>Work %</th>
             <th>Burn Rate</th>
             <th>Delete</th>
-
         </tr>
         {% for data in fever_data %}
         <tr>
             <td>{{ data.created_at.strftime('%Y-%m-%d') }}</td>
-        <td>{{ data.current_wip }}</td>
-        <td>{{ data.actual_ct|round(1) }}</td>
-        <td>{{ data.average_ct|round(1) }}</td>  
-        <td>{{ data.cycle_time_diff|round(1) }}</td>  
-        <td>{{ data.buffer_consumption|round(1) }}%</td>
-        <td>{{ data.work_completed_pct|round(1) }}%</td>
-        <td>{{ data.buffer_burn_rate|round(2) }}</td>
-           <td><form action="{{ url_for('delete_fever_data', data_id=data.id) }}" method="POST" style="display:inline;">
-                <button type="submit" class="delete-button">Delete</button>
-            </form></td>
-            
+            <td>{{ data.current_wip }}</td>
+            <td>{{ data.actual_flowtime|round(1) }}</td>  <!-- Renamed -->
+            <td>{{ data.average_ct|round(1) }}</td>  
+            <td>{{ data.flowtime_diff|round(1) }}</td>  <!-- Renamed -->
+            <td>{{ data.buffer_consumption|round(1) }}%</td>
+            <td>{{ data.work_completed_pct|round(1) }}%</td>
+            <td>{{ data.buffer_burn_rate|round(2) }}</td>
+            <td>
+                <form action="{{ url_for('delete_fever_data', data_id=data.id) }}" method="POST" style="display:inline;">
+                    <button type="submit" class="delete-button">Delete</button>
+                </form>
+            </td>
         </tr>
         {% endfor %}
     </table>
+    
     <form action="{{ url_for('delete_project', project_id=project.id) }}" method="POST">
         <button type="submit" class="delete-button">Delete Project</button>
     </form>

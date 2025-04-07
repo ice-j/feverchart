@@ -47,12 +47,12 @@ class FeverChartData(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     project_id = db.Column(db.Integer, db.ForeignKey('project.id'))
     current_wip = db.Column(db.Integer)
-    actual_ct = db.Column(db.Float)
+    actual_flowtime = db.Column(db.Float)  # Renamed from actual_ct
     average_ct = db.Column(db.Float)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     actual_throughput = db.Column(db.Float)
-    expected_ct = db.Column(db.Float)
-    cycle_time_diff = db.Column(db.Float)
+    expected_flowtime = db.Column(db.Float)  # Renamed from expected_ct
+    flowtime_diff = db.Column(db.Float)  # Renamed from cycle_time_diff
     buffer_consumption = db.Column(db.Float)
     work_completed_pct = db.Column(db.Float)
     buffer_burn_rate = db.Column(db.Float)
@@ -119,10 +119,10 @@ def add_fever_data():
     try:
         project_id = request.form['project_id']
         current_wip = int(request.form['current_wip'])
-        actual_ct = float(request.form['actual_ct'])
-        average_ct = float(request.form['average_ct'])  # Get user input
+        actual_flowtime = float(request.form['actual_flowtime'])  # Renamed
+        average_flowtime = float(request.form['average_flowtime'])
 
-        if current_wip <= 0 or actual_ct <= 0 or average_ct <= 0:
+        if current_wip <= 0 or actual_flowtime <= 0 or average_ct <= 0:
             flash("All values must be greater than 0.", "error")
             return redirect(f'/project/{project_id}')
 
@@ -130,15 +130,15 @@ def add_fever_data():
         new_data = FeverChartData(
             project_id=project_id,
             current_wip=current_wip,
-            actual_ct=actual_ct,
-            average_ct=average_ct  # Store user input
+            actual_flowtime=actual_flowtime,  # Renamed
+            average_ct=average_ct
         )
 
-        # Calculate metrics
-        new_data.actual_throughput = current_wip / actual_ct
-        new_data.expected_ct = project.total_wip / new_data.actual_throughput
-        new_data.cycle_time_diff = new_data.expected_ct - average_ct  # Use user input
-        new_data.buffer_consumption = (new_data.expected_ct * 100) / project.buffer_size
+        # Updated calculations
+        new_data.actual_throughput = current_wip / actual_flowtime
+        new_data.expected_flowtime = project.total_wip / new_data.actual_throughput  # Renamed
+        new_data.flowtime_diff = new_data.expected_flowtime - average_ct  # Renamed
+        new_data.buffer_consumption = (new_data.expected_flowtime * 100) / project.buffer_size
         new_data.work_completed_pct = (1-(current_wip / project.total_wip)) * 100
         new_data.buffer_burn_rate = new_data.buffer_consumption / new_data.work_completed_pct if new_data.work_completed_pct != 0 else 0
 
