@@ -45,129 +45,193 @@
 
     <!-- Data Table -->
     <h3>Historical Data</h3>
-    <table>
-        <tr>
-            <th>Date</th>
-            <th>Current WIP</th>
-            <th>Actual Flowtime</th>  <!-- Renamed -->
-            <th>Average CT</th> 
-            <th>Flowtime Diff</th>  <!-- Renamed -->
-            <th>Buffer %</th>
-            <th>Work %</th>
-            <th>Burn Rate</th>
-            <th>Delete</th>
-        </tr>
-        {% for data in fever_data %}
-        <tr>
-            <td>{{ data.created_at.strftime('%Y-%m-%d') }}</td>
-            <td>{{ data.current_wip }}</td>
-            <td>{{ data.actual_flowtime|round(1) }}</td>  <!-- Renamed -->
-            <td>{{ data.average_flowtime|round(1) }}</td>  
-            <td>{{ data.flowtime_diff|round(1) }}</td>  <!-- Renamed -->
-            <td>{{ data.buffer_consumption|round(1) }}%</td>
-            <td>{{ data.work_completed_pct|round(1) }}%</td>
-            <td>{{ data.buffer_burn_rate|round(2) }}</td>
-            <td>
-                <form action="{{ url_for('delete_fever_data', data_id=data.id) }}" method="POST" style="display:inline;">
-                    <button type="submit" class="delete-button">Delete</button>
-                </form>
-            </td>
-        </tr>
-        {% endfor %}
-    </table>
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Current WIP</th>
+                    <th>Actual Flowtime</th>
+                    <th>Average CT</th>
+                    <th>Flowtime Diff</th>
+                    <th>Buffer %</th>
+                    <th>Work %</th>
+                    <th>Burn Rate</th>
+                    <th>Delete</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for data in fever_data %}
+                <tr>
+                    <td>{{ data.created_at.strftime('%Y-%m-%d') }}</td>
+                    <td>{{ data.current_wip }}</td>
+                    <td>{{ data.actual_flowtime|round(1) }}</td>
+                    <td>{{ data.average_flowtime|round(1) }}</td>
+                    <td>{{ data.flowtime_diff|round(1) }}</td>
+                    <td>{{ data.buffer_consumption|round(1) }}%</td>
+                    <td>{{ data.work_completed_pct|round(1) }}%</td>
+                    <td>{{ data.buffer_burn_rate|round(2) }}</td>
+                    <td>
+                        <form action="{{ url_for('delete_fever_data', data_id=data.id) }}" method="POST">
+                            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     
     <form action="{{ url_for('delete_project', project_id=project.id) }}" method="POST">
         <button type="submit" class="delete-button">Delete Project</button>
     </form>
 
-    
+
+
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="chart-container" style="height: 400px">
+                    <canvas id="bufferConsumptionChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="chart-container" style="height: 400px">
+                    <canvas id="burnRateChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
     <script>
-        // Initialize Chart
-        const ctx = document.getElementById('feverChart').getContext('2d');
+        document.addEventListener('DOMContentLoaded', function() {
+            const ctx = document.getElementById('feverChart').getContext('2d');
+            
+            // Format data from Flask
+            const chartData = {
+                datasets: [{
+                    label: 'Fever Chart',
+                    data: [
+                        {% for data in fever_data %}
+                        { 
+                            x: {{ data.work_completed_pct|round(1) }}, 
+                            y: {{ data.buffer_consumption|round(1) }}
+                        },
+                        {% endfor %}
+                    ],
+                    backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                    pointRadius: 5
+                }]
+            };
         
-        // Chart data from Flask template
-        const chartData = {
-            datasets: [{
-                label: 'Fever Chart',
-                data: [
-                    {% for data in fever_data %}
-                    { 
-                        x: {{ data.work_completed_pct|round(1) }}, 
-                        y: {{ data.buffer_consumption|round(1) }}
-                    },
-                    {% endfor %}
-                ],
-                backgroundColor: 'rgba(75, 192, 192, 0.6)',
-                pointRadius: 5
-            }]
-        };
-    
-        // Chart configuration
-        const config = {
-            type: 'scatter',
-            data: chartData,
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: {
-                        type: 'linear',
-                        position: 'bottom',
-                        title: {
-                            display: true,
-                            text: 'Work Completed (%)'
+            // Chart configuration
+            const config = {
+                type: 'scatter',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Work Completed (%)' },
+                            min: 0,
+                            max: 100
                         },
-                        min: 0,
-                        max: 100
+                        y: {
+                            title: { display: true, text: 'Buffer Consumption (%)' },
+                            min: 0,
+                            max: 100
+                        }
                     },
-                    y: {
-                        title: {
-                            display: true,
-                            text: 'Buffer Consumption (%)'
-                        },
-                        min: 0,
-                        max: 100
-                    }
-                },
-                plugins: {
-                    annotation: {
-                        annotations: {
-                            greenZone: {
-                                type: 'box',
-                                xMin: 0,
-                                xMax: 100,
-                                yMin: 0,
-                                yMax: 33,
-                                backgroundColor: 'rgba(0, 255, 0, 0.1)',
-                                borderWidth: 0
-                            },
-                            yellowZone: {
-                                type: 'box',
-                                xMin: 0,
-                                xMax: 100,
-                                yMin: 33,
-                                yMax: 66,
-                                backgroundColor: 'rgba(255, 255, 0, 0.1)',
-                                borderWidth: 0
-                            },
-                            redZone: {
-                                type: 'box',
-                                xMin: 0,
-                                xMax: 100,
-                                yMin: 66,
-                                yMax: 100,
-                                backgroundColor: 'rgba(255, 0, 0, 0.1)',
-                                borderWidth: 0
+                    plugins: {
+                        annotation: {
+                            annotations: {
+                                greenZone: {
+                                    type: 'box',
+                                    xMin: 0,
+                                    xMax: 100,
+                                    yMin: 0,
+                                    yMax: 33,
+                                    backgroundColor: 'rgba(0, 255, 0, 0.1)'
+                                },
+                                yellowZone: {
+                                    type: 'box',
+                                    xMin: 0,
+                                    xMax: 100,
+                                    yMin: 33,
+                                    yMax: 66,
+                                    backgroundColor: 'rgba(255, 255, 0, 0.1)'
+                                },
+                                redZone: {
+                                    type: 'box',
+                                    xMin: 0,
+                                    xMax: 100,
+                                    yMin: 66,
+                                    yMax: 100,
+                                    backgroundColor: 'rgba(255, 0, 0, 0.1)'
+                                }
                             }
                         }
                     }
                 }
-            }
-        };
+            };
+        
+            new Chart(ctx, config);
+        });
+        </script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Buffer Charts
+        fetch(`/api/buffer/{{ project.id }}`)
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
+            .then(data => {
+                // Buffer Consumption Chart
+                new Chart(document.getElementById('bufferConsumptionChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: 'Buffer Consumption %',
+                            data: data.buffer_consumption,
+                            backgroundColor: 'rgba(255, 99, 132, 0.5)'
+                        }]
+                    },
+                    options: {
+                        scales: { y: { max: 100 } }
+                    }
+                });
     
-        // Create the chart
-        new Chart(ctx, config);
+                // Burn Rate Chart
+                new Chart(document.getElementById('burnRateChart'), {
+                    type: 'line',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: 'Burn Rate',
+                            data: data.burn_rate,
+                            borderColor: '#ff9f40'
+                        }]
+                    }
+                });
+            })
+            .catch(error => console.error('Error loading buffer data:', error));
+    });
     </script>
+    
     
     
 </div>

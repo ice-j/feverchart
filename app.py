@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, flash, url_for
+from flask import Flask, render_template, request, redirect, flash, url_for, jsonify 
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from sqlalchemy import func  
@@ -54,7 +54,6 @@ class Project(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     fever_data = db.relationship('FeverChartData', backref='project', lazy=True)
     original_expected_flowtime = db.Column(db.Float)
-
 class FeverChartData(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     project_id = db.Column(db.Integer, db.ForeignKey('project.id'))
@@ -172,6 +171,17 @@ def project_detail(project_id):
     project = Project.query.get_or_404(project_id)
     fever_data = FeverChartData.query.filter_by(project_id=project_id).order_by(FeverChartData.created_at).all()
     return render_template('fever_chart.html', project=project, fever_data=fever_data)
+
+@app.route('/api/buffer/<int:project_id>')
+def get_buffer_data(project_id):
+    data = FeverChartData.query.filter_by(project_id=project_id).order_by(FeverChartData.created_at).all()
+    return jsonify({
+        'labels': [d.created_at.strftime('%Y-%m-%d') for d in data],
+        'buffer_consumption': [d.buffer_consumption for d in data],
+        'burn_rate': [d.buffer_burn_rate for d in data]
+    })
+
+
 @app.route('/add_fever_data', methods=['POST'])
 def add_fever_data():
     try:
