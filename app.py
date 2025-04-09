@@ -8,31 +8,71 @@ from datetime import timedelta
 from auth import admin_required
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_bootstrap import Bootstrap
+from flask_mail import Mail, Message
+from dotenv import load_dotenv
+from itsdangerous import URLSafeTimedSerializer
+from flask_wtf import FlaskForm
+from wtforms import (
+    StringField, 
+    PasswordField, 
+    SubmitField, 
+    validators
+)
+from wtforms.validators import DataRequired, Email, EqualTo
+
+
+load_dotenv()
+
 
 # Initialize Flask app
 app = Flask(__name__)
+
+# App configuration
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'default-secret-key') 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///fever.db'
+
+bootstrap = Bootstrap(app)
+
+# Email Configuration
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'  # Gmail's SMTP server
+app.config['MAIL_PORT'] = 587  # Port for TLS
+app.config['MAIL_USE_TLS'] = True  
+app.config['MAIL_USE_SSL'] = False  
+app.config['MAIL_USERNAME'] = os.getenv('EMAIL_USER')  
+app.config['MAIL_PASSWORD'] = os.getenv('EMAIL_PASS') 
+app.config['MAIL_DEFAULT_SENDER'] = os.getenv('EMAIL_USER')
+
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login' 
+mail = Mail(app)  # Initialize Flask-Mail
 
-bootstrap = Bootstrap(app)
+# Token serializer for email verification and password reset
+serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+
 
 # Database Models
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True)
-    password_hash = db.Column(db.String(200))  # Renamed from 'password'
+    email = db.Column(db.String(100), unique=True)  # New field for email verification
     role = db.Column(db.String(50), default='user')
+    password_hash = db.Column(db.String(200))  # Field to store hashed passwords
+    email_verified = db.Column(db.Boolean, default=False)  # New field to track verification status
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     teams = db.relationship('Team', backref='creator', lazy=True)
 
-    # Add password hashing methods
+    # Set password (hashing)
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
-    
+
+    # Check password (verification)
     def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
+        return check_password_hash(self.password_hash, password)  
+    
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
 class Team(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -73,6 +113,22 @@ class FeverChartData(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+class RegistrationForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired()])
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    password = PasswordField('Password', validators=[DataRequired()])
+    confirm_password = PasswordField(
+        'Confirm Password',
+        validators=[DataRequired(), EqualTo('password', message='Passwords must match')]
+    )
+    submit = SubmitField('Sign Up')
+
+
+class LoginForm(FlaskForm):
+    username_or_email = StringField('Username or Email', [validators.DataRequired()])
+    password = PasswordField('Password', [validators.DataRequired()])
+
+
 # ====================== ROUTES ======================
 @app.route('/')
 @login_required
@@ -85,44 +141,151 @@ def index():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        
-        existing_user = User.query.filter_by(username=username).first()
+    form = RegistrationForm()  # Use the RegistrationForm class
+    if form.validate_on_submit():
+        # Use form data instead of request.form
+        username = form.username.data
+        email = form.email.data
+        password = form.password.data
+
+        # Check if user exists
+        existing_user = User.query.filter_by(email=email).first()
         if existing_user:
-            flash("Username already exists.", "error")
+            flash("Email already registered. Please log in.", "error")
             return redirect(url_for('register'))
-        
-        # Create user with hashed password
-        new_user = User(
-            username=username,
-            password_hash=generate_password_hash(password),  # Use password_hash
-            role='user'
-        )
-        
+
+        # Create new user
+        new_user = User(username=username, email=email, email_verified=False)
+        new_user.set_password(password)
         db.session.add(new_user)
         db.session.commit()
-        flash("Account created successfully!", "success")
+
+        # Send verification email
+        token = serializer.dumps(email, salt='email-verify')
+        verification_url = url_for('verify_email', token=token, _external=True)
+        msg = Message('Verify Your Email', recipients=[email])
+        msg.body = f'Hi {username},\n\nVerify your email: {verification_url}'
+        mail.send(msg)
+
+        flash("Registration successful! Check your email.", "success")
+        return redirect(url_for('login'))
+
+    return render_template('register.html', form=form)  # Pass form to template
+
+
+@app.route('/verify/<token>')
+def verify_email(token):
+    try:
+        email = serializer.loads(token, salt='email-verify', max_age=3600)  # Token expires in 1 hour (3600 seconds)
+    except:
+        flash("The verification link is invalid or has expired.", "error")
+        return redirect(url_for('register'))
+
+    user = User.query.filter_by(email=email).first()
+    if user.email_verified:
+        flash("Your email is already verified. Please log in.", "info")
+    else:
+        user.email_verified = True
+        db.session.commit()
+        flash("Your email has been verified! You can now log in.", "success")
+    
+    return redirect(url_for('login'))
+
+# Password Reset Routes
+@app.route('/reset-password', methods=['GET', 'POST'])
+def reset_password_request():
+    if request.method == 'POST':
+        email = request.form['email']
+        user = User.query.filter_by(email=email).first()
+        
+        if user:
+            # Generate password reset token
+            token = serializer.dumps(user.email, salt='password-reset')
+            reset_url = url_for('reset_password', token=token, _external=True)
+            
+            # Send password reset email
+            msg = Message(
+                'Password Reset Request',
+                recipients=[user.email],
+                body=f'''To reset your password, visit:
+{reset_url}
+
+This link expires in 1 hour.'''
+            )
+            mail.send(msg)
+        
+        flash('Check your email for password reset instructions.', 'info')
         return redirect(url_for('login'))
     
-    return render_template('register.html')
+    return render_template('reset_request.html')
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    try:
+        email = serializer.loads(token, salt='password-reset', max_age=3600)
+    except:
+        flash('Invalid or expired reset link.', 'danger')
+        return redirect(url_for('reset_password_request'))
+    
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        flash('User not found.', 'danger')
+        return redirect(url_for('register'))
+    
+    if request.method == 'POST':
+        # Update password
+        user.set_password(request.form['password'])
+        db.session.commit()
+        flash('Password updated successfully!', 'success')
+        return redirect(url_for('login'))
+    
+    return render_template('reset_password.html')
+
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    if request.method == 'POST':
+        # Update username/email
+        current_user.username = request.form['username']
+        current_user.email = request.form['email']
+        
+        # Password change
+        if request.form['new_password']:
+            if current_user.check_password(request.form['current_password']):
+                current_user.set_password(request.form['new_password'])
+            else:
+                flash('Current password is incorrect.', 'danger')
+                return redirect(url_for('profile'))
+        
+        db.session.commit()
+        flash('Profile updated successfully!', 'success')
+        return redirect(url_for('profile'))
+    
+    return render_template('profile.html')
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        user = User.query.filter_by(username=username).first()
-        
-        if user and check_password_hash(user.password_hash, password):  # Check password_hash
+    form = LoginForm()  # Create an instance of the LoginForm
+    if form.validate_on_submit():  # Validate the form submission
+        username_or_email = form.username_or_email.data
+        password = form.password.data
+
+        # Allow login via username or email
+        user = User.query.filter((User.username == username_or_email) | (User.email == username_or_email)).first()
+
+        if user and user.check_password(password):  # Verify hashed password
+            if not user.email_verified:
+                flash("Please verify your email before logging in.", "error")
+                return redirect(url_for('login'))
+
             login_user(user)
             flash("Logged in successfully!", "success")
             return redirect(url_for('index'))
-        else:
-            flash("Invalid username or password.", "error")
-    
-    return render_template('login.html')
+
+        flash("Invalid credentials. Please try again.", "error")
+
+    return render_template('login.html', form=form)  # Pass the form to the template
 
 @app.route('/add_team', methods=['POST'])
 @login_required
@@ -260,7 +423,7 @@ def delete_fever_data(data_id):
 @login_required
 def logout():
     logout_user()
-    flash("Logged out successfully.", "success")
+    flash("You have been logged out.", "info")
     return redirect(url_for('login'))
 
 @app.route('/admin/dashboard')
