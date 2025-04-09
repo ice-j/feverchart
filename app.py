@@ -89,11 +89,10 @@ class Project(db.Model):
     name = db.Column(db.String(100))
     total_wip = db.Column(db.Integer)
     buffer_size = db.Column(db.Integer)
-    forecasted_date = db.Column(db.DateTime)
-    buffer_deadline = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     fever_data = db.relationship('FeverChartData', backref='project', lazy=True)
     original_expected_flowtime = db.Column(db.Float)
+   
 class FeverChartData(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     project_id = db.Column(db.Integer, db.ForeignKey('project.id'))
@@ -304,23 +303,13 @@ def add_team():
 @app.route('/add_project', methods=['POST'])
 def add_project():
     try:
-        original_expected_flowtime = float(request.form.get('original_expected_flowtime', 0))  # Default to 0 if missing
-        forecasted_date = datetime.strptime(request.form['forecasted_date'], '%Y-%m-%d')
-        buffer_size = int(request.form['buffer_size'])
-        original_expected_flowtime = float(request.form['original_expected_flowtime'])  # New field
-
-        # Create a new project with the parsed values
         project = Project(
             team_id=request.form['team_id'],
             name=request.form['name'],
             total_wip=int(request.form['total_wip']),
-            buffer_size=buffer_size,
-            forecasted_date=forecasted_date,
-            buffer_deadline=forecasted_date + timedelta(days=buffer_size),
-            original_expected_flowtime=original_expected_flowtime  # Set the new field
+            buffer_size=int(request.form['buffer_size']),
+            original_expected_flowtime=float(request.form['original_expected_flowtime'])
         )
-
-        # Save the project to the database
         db.session.add(project)
         db.session.commit()
         flash("Project added successfully.", "success")
