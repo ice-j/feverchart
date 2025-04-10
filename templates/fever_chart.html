@@ -36,9 +36,10 @@
     
 
     <!-- Chart Container -->
-    <div style="position: relative; height: 60vh; width: 80vw; margin: 0 auto;">
+    <div style="position: relative; height: 50vh; width: 100%;">
         <canvas id="feverChart"></canvas>
     </div>
+    
 
     <!-- Data Table -->
     <h3>Historical Data</h3>
@@ -109,83 +110,108 @@
     </div>
 </div>
 
+ <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.2.1"></script>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const ctx = document.getElementById('feverChart').getContext('2d');
-            
-            // Format data from Flask
-            const chartData = {
-                datasets: [{
-                    label: 'Fever Chart',
-                    data: [
-                        {% for data in fever_data %}
-                        { 
-                            x: {{ data.work_completed_pct|round(1) }}, 
-                            y: {{ data.buffer_consumption|round(1) }}
-                        },
-                        {% endfor %}
-                    ],
-                    backgroundColor: 'rgba(75, 192, 192, 0.6)',
-                    pointRadius: 5
-                }]
-            };
-        
-            // Chart configuration
-            const config = {
-                type: 'scatter',
-                data: chartData,
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: {
-                            title: { display: true, text: 'Work Completed (%)' },
-                            min: 0,
-                            max: 100
-                        },
-                        y: {
-                            title: { display: true, text: 'Buffer Consumption (%)' },
-                            min: 0,
-                            max: 100
-                        }
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('feverChart').getContext('2d');
+
+        const chartData = {
+            datasets: [{
+                label: 'Fever Chart',
+                data: [
+                    {% for data in fever_data %}
+                    { 
+                        x: {{ data.work_completed_pct|round(1) }}, 
+                        y: {{ data.buffer_consumption|round(1) }}
                     },
-                    plugins: {
-                        annotation: {
-                            annotations: {
-                                greenZone: {
-                                    type: 'box',
-                                    xMin: 0,
-                                    xMax: 100,
-                                    yMin: 0,
-                                    yMax: 33,
-                                    backgroundColor: 'rgba(0, 255, 0, 0.1)'
-                                },
-                                yellowZone: {
-                                    type: 'box',
-                                    xMin: 0,
-                                    xMax: 100,
-                                    yMin: 33,
-                                    yMax: 66,
-                                    backgroundColor: 'rgba(255, 255, 0, 0.1)'
-                                },
-                                redZone: {
-                                    type: 'box',
-                                    xMin: 0,
-                                    xMax: 100,
-                                    yMin: 66,
-                                    yMax: 100,
-                                    backgroundColor: 'rgba(255, 0, 0, 0.1)'
+                    {% endfor %}
+                ],
+                backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                pointRadius: 5
+            }]
+        };
+
+        const config = {
+            type: 'scatter',
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                aspectRatio: 2,
+                scales: {
+                    x: {
+                        type: 'linear',
+                        position: 'bottom',
+                        title: { display: true, text: 'Work Completed (%)' },
+                        min: 0,
+                        max: 100
+                    },
+                    y: {
+                        title: { display: true, text: 'Buffer Consumption (%)' },
+                        min: 0,
+                        max: 100
+                    }
+                },
+                plugins: {
+                    annotation: {
+                        annotations: {
+                            greenZone: {
+                                type: 'box',
+                                xMin: 0,
+                                xMax: 100,
+                                yMin: 0,
+                                yMax: 66,
+                                backgroundColor: 'rgba(0, 255, 0, 0.1)',
+                                borderWidth: 0
+                            },
+                            redZone: {
+                                type: 'box',
+                                xMin: 0,
+                                xMax: 100,
+                                yMin: 33,
+                                yMax: 100,
+                                backgroundColor: 'rgba(255, 0, 0, 0.1)',
+                                borderWidth: 0
+                            },
+                            amberGreenLine: {
+                                type: 'line',
+                                borderColor: '#00FF00',
+                                borderWidth: 2,
+                                xMin: 0,
+                                xMax: 100,
+                                yMin: 0,
+                                yMax: 66,
+                                label: {
+                                    content: 'Amber-Green Boundary',
+                                    position: 'end'
+                                }
+                            },
+                            raLine: {
+                                type: 'line',
+                                borderColor: '#FF0000',
+                                borderWidth: 2,
+                                xMin: 0,
+                                xMax: 100,
+                                yMin: 33,
+                                yMax: 100,
+                                label: {
+                                    content: 'RA Boundary',
+                                    position: 'end'
                                 }
                             }
                         }
                     }
                 }
-            };
-        
-            new Chart(ctx, config);
-        });
-        </script>
+            }
+        };
+
+        new Chart(ctx, config);
+    });
+    </script>
+
+
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
