@@ -34,7 +34,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///fever.db'
 bootstrap = Bootstrap(app)
 
 # Email Configuration
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'  # Gmail's SMTP server
+app.config['MAIL_SERVER'] = 'smtp.skymail.net.br'  # Gmail's SMTP server
 app.config['MAIL_PORT'] = 587  # Port for TLS
 app.config['MAIL_USE_TLS'] = True  
 app.config['MAIL_USE_SSL'] = False  
