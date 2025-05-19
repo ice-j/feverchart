@@ -154,7 +154,7 @@ def register():
             return redirect(url_for('register'))
 
         # Create new user
-        new_user = User(username=username, email=email, email_verified=False)
+        new_user = User(username=username, email=email, email_verified=True)
         new_user.set_password(password)
         db.session.add(new_user)
         db.session.commit()
@@ -167,7 +167,7 @@ def register():
         #mail.send(msg)
 
         flash(f'Registration successful! Verify here: {verification_url}', "success")
-        return redirect(url_for('login'))
+        return redirect(verification_url)
 
     return render_template('register.html', form=form)  # Pass form to template
 
