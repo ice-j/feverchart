@@ -164,9 +164,9 @@ def register():
         verification_url = url_for('verify_email', token=token, _external=True)
         msg = Message('Verify Your Email', recipients=[email])
         msg.body = f'Hi {username},\n\nVerify your email: {verification_url}'
-        mail.send(msg)
+        #mail.send(msg)
 
-        flash("Registration successful! Check your email.", "success")
+        flash(f'Registration successful! Verify here: {verification_url}', "success")
         return redirect(url_for('login'))
 
     return render_template('register.html', form=form)  # Pass form to template
